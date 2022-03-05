@@ -59,10 +59,10 @@ chooseBootloader () {
 installBootloader () {
     if [ "$bootloader" == "grub" ]; then
         if checkUEFI; then
-            grub-install --target=i386-pc $(cat /root/bootdisk)
-        else
             pacman -Sy efibootmgr --noconfirm
             grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
+        else
+            grub-install --target=i386-pc $(cat /root/bootdisk)
         fi
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [ "$bootloader" == "refind" ]; then
