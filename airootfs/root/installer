@@ -68,7 +68,7 @@ setupDisk () {
     clear
     echo "Press any key to continue..."
     read -n1
-    boot=$(dialog --default-item "$(ls $disk*[0-9] | awk 'NR==1{print $1}')" --menu "Choose boot partition" 13 30 30 $(ls $disk*[0-9] | awk '{print $1}' | while IFS= read -r line ; do echo $line $(blockdev --getsize64 $line | numfmt --to=iec-i --suffix=B ); done ) --stdout)
+    boot=$(dialog --default-item "$(ls $disk*[0-9] | awk 'NR==1{print $1}')" --menu "Choose boot partition" 13 30 30 $(ls $disk*[0-9] | awk '{print $1}' | while IFS= read -r line ; do echo $line $(blockdev --getsize64 $line | numfmt --to=iec-i --suffix=B ); done ) "none" "." --stdout)
     if [ $? != 0 ]; then
         setupDisk
         return 0
@@ -88,12 +88,14 @@ setupDisk () {
         setupDisk
         return 0
     fi
-    bootfs=$([ -d /sys/firmware/efi ] && echo 2 || echo 1)
-    echo "Creating /boot filesystem"
-    if [ "$bootfs" == "1" ]; then
-        mkfs.ext4 -F $boot
-        elif [ "$bootfs" == "2" ]; then
-        mkfs.vfat -F 32 $boot
+    if [ "$boot" != "none" ]; then
+        bootfs=$([ -d /sys/firmware/efi ] && echo 2 || echo 1)
+        echo "Creating /boot filesystem"
+        if [ "$bootfs" == "1" ]; then
+            mkfs.ext4 -F $boot
+            elif [ "$bootfs" == "2" ]; then
+            mkfs.vfat -F 32 $boot
+        fi
     fi
     rootfs=$(dialog --default-item "btrfs" --menu "Choose root filesystem" 10 60 30 "ext4" "ext4 journaling file system" "btrfs" "B-tree file system" --stdout)
     echo "Creating root filesystem"
@@ -129,7 +131,9 @@ runOOBE () {
     cp "oobe-$type-$minimal" /mnt/root/oobe
     chmod +x /mnt/root/oobe
     chmod +x /mnt/root/oobe-common
+    echo $boot>/mnt/root/bootpart
     echo $disk>/mnt/root/bootdisk
+    echo $root>/mnt/root/rootpart
     arch-chroot /mnt /root/oobe-common
 }
 

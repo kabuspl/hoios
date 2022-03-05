@@ -1,40 +1,80 @@
 #!/bin/bash
-sed '/en_US.UTF-8/s/^#//g' -i /etc/locale.gen
-sed '/ParallelDownloads/s/^#//g' -i /etc/pacman.conf
-sed '/Color/s/^#//g' -i /etc/pacman.conf
-locale-gen
-systemctl enable NetworkManager
-sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
-jsondata=$(curl -s https://freegeoip.app/json/)
-country=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['country_code'])")
-reflector --sort rate --latest 20 -c $country --save /etc/pacman.d/mirrorlist --verbose
-groupadd sudo
-echo "%sudo ALL=(ALL:ALL) ALL" >>/etc/sudoers
-groupadd sudonopasswd
-echo "%sudonopasswd ALL=(ALL:ALL) NOPASSWD: ALL" >>/etc/sudoers
-timezoneg=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['time_zone'])")
-timezone=$(dialog --title "Enter timezone" --inputbox "Detected: $timezoneg" 8 50 --stdout)
-ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime
-hwclock --systohc
-echo LANG=en_US.UTF-8 >/etc/locale.conf
-hostname=$(dialog --title "Enter hostname" --inputbox " " 8 50 --stdout)
-echo $hostname >/etc/hostname
-user=$(dialog --title "Enter username" --inputbox " " 8 50 --stdout)
-userpasswd=$(dialog --title "Enter $user password" --passwordbox " " 8 50 --stdout)
-useradd -m $user
-echo "$user:$userpasswd" | chpasswd
-usermod -G sudo $user
-clear
-rootpasswd=$(dialog --title "Enter root password" --passwordbox " " 8 50 --stdout)
-echo "root:$rootpasswd" | chpasswd
-bootfs=$([ -d /sys/firmware/efi ] && echo 2 || echo 1)
-if [ "$bootfs" == "1" ]; then
-    grub-install --target=i386-pc $(cat /root/bootdisk)
-elif [ "$bootfs" == "2" ]; then
-    pacman -Sy efibootmgr --noconfirm
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
-fi
-grub-mkconfig -o /boot/grub/grub.cfg
+setupConfig () {
+    sed '/en_US.UTF-8/s/^#//g' -i /etc/locale.gen
+    sed '/ParallelDownloads/s/^#//g' -i /etc/pacman.conf
+    sed '/Color/s/^#//g' -i /etc/pacman.conf
+    echo LANG=en_US.UTF-8 >/etc/locale.conf
+    locale-gen
+    systemctl enable NetworkManager
+    sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+    groupadd sudo
+    echo "%sudo ALL=(ALL:ALL) ALL" >>/etc/sudoers
+    groupadd sudonopasswd
+    echo "%sudonopasswd ALL=(ALL:ALL) NOPASSWD: ALL" >>/etc/sudoers
+    reflectorSort
+}
+reflectorSort () {
+    jsondata=$(curl -s https://freegeoip.app/json/)
+    country=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['country_code'])")
+    reflector --sort rate --latest 20 -c $country --save /etc/pacman.d/mirrorlist --verbose
+    setupTimezone
+}
+setupTimezone () {
+    timezoneg=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['time_zone'])")
+    timezone=$(dialog --title "Enter timezone" --inputbox "Detected: $timezoneg" 8 50 --stdout)
+    ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime
+    hwclock --systohc
+    setupHostname
+}
+setupHostname () {
+    hostname=$(dialog --title "Enter hostname" --inputbox " " 8 50 --stdout)
+    echo $hostname >/etc/hostname
+    setupUser
+}
+setupUser () {
+    user=$(dialog --title "Enter username" --inputbox " " 8 50 --stdout)
+    userpasswd=$(dialog --title "Enter $user password" --passwordbox " " 8 50 --stdout)
+    useradd -m $user
+    echo "$user:$userpasswd" | chpasswd
+    usermod -G sudo $user
+    setupRoot
+}
+setupRoot () {
+    rootpasswd=$(dialog --title "Enter root password" --passwordbox " " 8 50 --stdout)
+    echo "root:$rootpasswd" | chpasswd
+    if [ "$(cat /root/bootpart)" != "none" ]; then
+        chooseBootloader
+    fi
+}
+checkUEFI () {
+    return $([ -d /sys/firmware/efi ] && echo 0 || echo 1)
+}
+chooseBootloader () {
+    bootloader="grub"
+    if checkUEFI; then
+        bootloader=$(dialog --menu "Choose bootloader" 10 60 30 "grub" "GNU GRUB" "refind" "The rEFInd Boot Manager" --stdout)
+    fi
+    installBootloader
+}
+installBootloader () {
+    if [ "$bootloader" == "grub" ]; then
+        if checkUEFI; then
+            grub-install --target=i386-pc $(cat /root/bootdisk)
+        else
+            pacman -Sy efibootmgr --noconfirm
+            grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
+        fi
+        grub-mkconfig -o /boot/grub/grub.cfg
+    elif [ "$bootloader" == "refind" ]; then
+        pacman -Sy refind efibootmgr --noconfirm
+        refind-install
+        uuid=$(blkid -s UUID -o value $(cat /root/rootpart))
+        echo "\"hoiOS         \" \"root=UUID=${uuid} rw add_efi_memmap\"" > /boot/refind_linux.conf
+        echo "\"hoiOS Fallback\" \"root=UUID=${uuid} rw add_efi_memmap initrd=/initramfs-linux-fallback.img\"" >> /boot/refind_linux.conf
+        echo "\"hoiOS Terminal\" \"root=UUID=${uuid} rw add_efi_memmap systemd.unit=multi-user.target\"" >> /boot/refind_linux.conf
+    fi
+}
+setupConfig
 echo $user>/root/user
 pacman -Sy
 /root/oobe
