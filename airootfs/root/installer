@@ -1,0 +1,137 @@
+#!/bin/bash
+setupConfig () {
+    sed '/ParallelDownloads/s/^#//g' -i /etc/pacman.conf
+    sed '/Color/s/^#//g' -i /etc/pacman.conf
+    checkInternet
+}
+checkInternet () {
+    inet=1
+    while [ $inet == "1" ]; do
+        dialog --title "Please wait..." --infobox "Checking internet connection..." 3 35
+        inet="$(ping google.com -c 3 -w 5 >/dev/null ; echo $?)"
+        if [ "$inet" != "0" ]; then
+            dialog --yesno "Network not working. Do you want to connect to WiFi network?" 10 30 --stdout
+            if [ "$?" == "1" ]; then
+                inet=0
+            else
+                clear
+                WHITE='\033[1;37m'
+                NC='\033[0m'
+                echo "First, if you do not know your wireless device name, list all Wi-Fi devices:"
+                echo -e "${WHITE}[iwd]# device list${NC}"
+                echo "Then, to scan for networks:"
+                echo -e "${WHITE}[iwd]# station [device] scan${NC}"
+                echo "You can then list all available networks:"
+                echo -e "${WHITE}[iwd]# station [device] get-networks${NC}"
+                echo "Finally, to connect to a network:"
+                echo -e "${WHITE}[iwd]# station [device] connect [SSID]${NC}"
+                echo ""
+                iwctl
+            fi
+        fi
+    done
+    welcome
+}
+welcome () {
+    welcome=$(dialog --title "hoiOS Installer" --menu "Welcome! \nChoose action:" 10 30 30 "1" "Install system" "2" "Recovery shell" --stdout)
+    if [ $? == 1 ] || [ "$welcome" == "2" ]; then
+        clear
+        echo "Run ./installer to start setup."
+        exit 1
+    fi
+    choosePreset
+}
+choosePreset () {
+    type=$(dialog --title "hoiOS Installer" --menu "Choose preset" 10 30 30 "1" "Server" "2" "Desktop" --stdout)
+    if [ $? != 0 ]; then
+        welcome
+        return 0
+    fi
+    chooseMode
+}
+chooseMode () {
+    minimal=$(dialog --title "hoiOS Installer" --menu "Choose mode" 10 30 30 "1" "Full" "2" "Minimal" --stdout)
+    if [ $? != 0 ]; then
+        choosePreset
+        return 0
+    fi
+    setupDisk
+}
+setupDisk () {
+    disk=$(dialog --title "hoiOS Installer" --menu "Choose disk" 20 60 30 $(fdisk -l 2>/dev/null |awk '/^Disk \//{print substr($2,0,length($2)-1)}' | while IFS= read -r line ; do echo $line $(echo $(fdisk -l 2>/dev/null | grep "Disk $line" -A 1 | grep "Disk model" || echo "Unknown device") | cut -d ":" -f 2 | sed 's/\b\s\b/_/g'); done | grep -v "/dev/loop") --stdout)
+    if [ $? != 0 ]; then
+        chooseMode
+        return 0
+    fi
+    dialog --title "Partitioning" --msgbox "Recommended partition table: \n\n${disk}1 (boot) = 512MB (Type: EFI System for UEFI, Linux for BIOS) \n${disk}2 (swap) = RAM (Type: Linux Swap) \n${disk}3 (root) = free space (Type: Linux root (x86-64)) " 9 80
+    cfdisk $disk
+    clear
+    echo "Press any key to continue..."
+    read -n1
+    boot=$(dialog --default-item "$(ls $disk*[0-9] | awk 'NR==1{print $1}')" --menu "Choose boot partition" 13 30 30 $(ls $disk*[0-9] | awk '{print $1}' | while IFS= read -r line ; do echo $line $(blockdev --getsize64 $line | numfmt --to=iec-i --suffix=B ); done ) --stdout)
+    if [ $? != 0 ]; then
+        setupDisk
+        return 0
+    fi
+    swap=$(dialog --default-item "$(ls $disk*[0-9] | awk 'NR==2{print $1}')" --menu "Choose swap partition" 13 30 30 $(ls $disk*[0-9] | awk '{print $1}' | while IFS= read -r line ; do echo $line $(blockdev --getsize64 $line | numfmt --to=iec-i --suffix=B ); done ) --stdout)
+    if [ $? != 0 ]; then
+        setupDisk
+        return 0
+    fi
+    root=$(dialog --default-item "$(ls $disk*[0-9] | awk 'NR==3{print $1}')" --menu "Choose root partition" 13 30 30 $(ls $disk*[0-9] | awk '{print $1}' | while IFS= read -r line ; do echo $line $(blockdev --getsize64 $line | numfmt --to=iec-i --suffix=B ); done ) --stdout)
+    if [ $? != 0 ]; then
+        setupDisk
+        return 0
+    fi
+    dialog --yesno "Do you want to continue? Data on the following partitions will be DESTROYED: $boot; $swap; $root" 10 40 --stdout
+    if [ $? != 0 ]; then
+        setupDisk
+        return 0
+    fi
+    bootfs=$([ -d /sys/firmware/efi ] && echo 2 || echo 1)
+    echo "Creating /boot filesystem"
+    if [ "$bootfs" == "1" ]; then
+        mkfs.ext4 -F $boot
+        elif [ "$bootfs" == "2" ]; then
+        mkfs.vfat -F 32 $boot
+    fi
+    rootfs=$(dialog --default-item "btrfs" --menu "Choose root filesystem" 10 60 30 "ext4" "ext4 journaling file system" "btrfs" "B-tree file system" --stdout)
+    echo "Creating root filesystem"
+    if [ "$rootfs" == "ext4" ]; then
+        mkfs.ext4 -F $root
+        elif [ "$rootfs" == "btrfs" ]; then
+        mkfs.btrfs -f $root
+    fi
+    mkswap $swap
+    mount $root /mnt
+    mkdir -p /mnt/boot
+    mount $boot /mnt/boot
+    swapon $swap
+    reflectorSort
+}
+reflectorSort () {
+    jsondata=$(curl -s https://freegeoip.app/json/)
+    country=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['country_code'])")
+    reflector --sort rate --latest 20 -c $country --save /etc/pacman.d/mirrorlist --verbose
+    installBaseSystem
+}
+installBaseSystem() {
+    if [ "$type" == "1" ]; then
+        pacstrap /mnt base linux-lts linux-firmware grub dialog git sudo base-devel dhcpcd networkmanager htop ufw curl reflector
+        elif [ "$type" == "2" ]; then
+        pacstrap /mnt base linux-zen linux-firmware grub dialog git sudo base-devel dhcpcd networkmanager bluez bluez-utils htop cups noto-fonts ttf-dejavu ufw curl reflector
+    fi
+    genfstab -U /mnt >> /mnt/etc/fstab
+    runOOBE
+}
+runOOBE () {
+    cp "oobe-common" /mnt/root/oobe-common
+    cp "oobe-$type-$minimal" /mnt/root/oobe
+    chmod +x /mnt/root/oobe
+    chmod +x /mnt/root/oobe-common
+    echo $disk>/mnt/root/bootdisk
+    arch-chroot /mnt /root/oobe-common
+}
+
+setupConfig
+reboot

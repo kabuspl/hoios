@@ -1,0 +1,40 @@
+#!/bin/bash
+sed '/en_US.UTF-8/s/^#//g' -i /etc/locale.gen
+sed '/ParallelDownloads/s/^#//g' -i /etc/pacman.conf
+sed '/Color/s/^#//g' -i /etc/pacman.conf
+locale-gen
+systemctl enable NetworkManager
+sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+jsondata=$(curl -s https://freegeoip.app/json/)
+country=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['country_code'])")
+reflector --sort rate --latest 20 -c $country --save /etc/pacman.d/mirrorlist --verbose
+groupadd sudo
+echo "%sudo ALL=(ALL:ALL) ALL" >>/etc/sudoers
+groupadd sudonopasswd
+echo "%sudonopasswd ALL=(ALL:ALL) NOPASSWD: ALL" >>/etc/sudoers
+timezoneg=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['time_zone'])")
+timezone=$(dialog --title "Enter timezone" --inputbox "Detected: $timezoneg" 8 50 --stdout)
+ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime
+hwclock --systohc
+echo LANG=en_US.UTF-8 >/etc/locale.conf
+hostname=$(dialog --title "Enter hostname" --inputbox " " 8 50 --stdout)
+echo $hostname >/etc/hostname
+user=$(dialog --title "Enter username" --inputbox " " 8 50 --stdout)
+userpasswd=$(dialog --title "Enter $user password" --passwordbox " " 8 50 --stdout)
+useradd -m $user
+echo "$user:$userpasswd" | chpasswd
+usermod -G sudo $user
+clear
+rootpasswd=$(dialog --title "Enter root password" --passwordbox " " 8 50 --stdout)
+echo "root:$rootpasswd" | chpasswd
+bootfs=$([ -d /sys/firmware/efi ] && echo 2 || echo 1)
+if [ "$bootfs" == "1" ]; then
+    grub-install --target=i386-pc $(cat /root/bootdisk)
+elif [ "$bootfs" == "2" ]; then
+    pacman -Sy efibootmgr --noconfirm
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
+fi
+grub-mkconfig -o /boot/grub/grub.cfg
+echo $user>/root/user
+pacman -Sy
+/root/oobe

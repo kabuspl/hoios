@@ -1,0 +1,79 @@
+#!/bin/bash
+systemctl enable bluetooth
+pacman -Sy xorg --noconfirm
+de=$(dialog --menu "Choose window manager" 10 30 30 "1" "i3" "2" "i3-gaps" "3" "awesome" "4" "None" --stdout)
+browser=$(dialog --menu "Choose web browser" 10 30 30 "1" "Firefox" "2" "Chromium" "3" "Waterfox G4" "4" "Vivaldi" "5" "LibreWolf" "6" "Brave" "7" "None" --stdout)
+editor=$(dialog --menu "Choose editor" 10 30 30 "1" "nano" "2" "vim" "3" "vi" "4" "neovim" "5" "emacs" --stdout)
+media=$(dialog --menu "Choose media player" 10 30 30 "1" "VLC" "2" "mpv" "3" "None" --stdout)
+nvidia=$(dialog --yesno "Do you want to install proprietary NVIDIA drivers?" 10 30 --stdout)
+
+if [ "$?" == "0" ]; then
+    pacman -S nvidia nvidia-utils lib32-nvidia-utils
+fi
+
+useradd -m aurtemp
+usermod -G sudonopasswd aurtemp
+
+pacman -S alacritty xorg-xinit --noconfirm
+
+if [ "$de" == "1" ]; then
+    pacman -S lightdm lightdm-gtk-greeter i3-wm thunar dmenu i3status --noconfirm
+    systemctl enable lightdm
+elif [ "$de" == "2" ]; then
+    pacman -S lightdm lightdm-gtk-greeter i3 thunar dmenu i3blocks --noconfirm
+    systemctl enable lightdm
+elif [ "$de" == "3" ]; then
+    pacman -S lightdm lightdm-gtk-greeter awesome thunar  --noconfirm
+    systemctl enable lightdm
+elif [ "$de" == "4" ]; then
+    echo "there's nothing to do"
+fi
+
+if [ "$browser" == "1" ]; then
+    pacman -S firefox --noconfirm
+elif [ "$browser" == "2" ]; then
+    pacman -S chromium --noconfirm
+elif [ "$browser" == "3" ]; then
+    cd /home/aurtemp
+    git clone https://aur.archlinux.org/waterfox-g4-bin.git
+    chown -R aurtemp waterfox-g4-bin
+    cd waterfox-g4-bin
+    sudo -u aurtemp makepkg -si --noconfirm
+    cd /
+elif [ "$browser" == "4" ]; then
+    pacman -S vivaldi --noconfirm
+elif [ "$browser" == "5" ]; then
+    cd /home/aurtemp
+    git clone https://aur.archlinux.org/librewolf-bin.git
+    chown -R aurtemp librewolf-bin
+    cd librewolf-bin
+    sudo -u aurtemp makepkg -si --noconfirm
+    cd /
+elif [ "$browser" == "6" ]; then
+    cd /home/aurtemp
+    git clone https://aur.archlinux.org/brave-bin.git
+    chown -R aurtemp brave-bin
+    cd brave-bin
+    sudo -u aurtemp makepkg -si --noconfirm
+    cd /
+fi
+
+if [ "$editor" == "1" ]; then
+    pacman -S nano --noconfirm
+elif [ "$editor" == "2" ]; then
+    pacman -S vim --noconfirm
+elif [ "$editor" == "3" ]; then
+    pacman -S vi --noconfirm
+elif [ "$editor" == "4" ]; then
+    pacman -S neovim --noconfirm
+elif [ "$editor" == "5" ]; then
+    pacman -S emacs --noconfirm
+fi
+
+if [ "$media" == "1" ]; then
+    pacman -S vlc --noconfirm
+elif [ "$media" == "2" ]; then
+    pacman -S mpv --noconfirm
+fi
+
+userdel -fr aurtemp

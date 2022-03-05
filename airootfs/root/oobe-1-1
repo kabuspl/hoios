@@ -1,0 +1,63 @@
+#!/bin/bash
+dialog --yesno "Do you want to install xorg and GUI? (Please don't do it!)" 10 40 --stdout
+if [ "$?" == "0" ]; then
+    de=$(dialog --menu "Choose GUI" 10 30 30 "1" "None" "2" "i3-gaps" "3" "xfce4" --stdout)
+    if [ "$de" == "2" ]; then
+        pacman -Sy lightdm lightdm-gtk-greeter i3 thunar dmenu i3blocks --noconfirm
+        systemctl enable lightdm
+    elif [ "$de" == "3" ]; then
+        pacman -Sy xfce4 lightdm xfce4-goodies --noconfirm
+        systemctl enable lightdm
+    fi
+fi
+
+useradd -m aurtemp
+usermod -G sudonopasswd aurtemp
+editor=$(dialog --menu "Choose editor" 20 30 30 "1" "nano" "2" "vim" "3" "vi" "4" "neovim" "5" "emacs" --stdout)
+pkgs=$(dialog --checklist "Choose server packages (space to select)" 20 60 40 "openssh" "SSH client and server" "on" "tmux" "Terminal multiplexer" "on" "qemu" "Virtualization software" "off" "vsftpd" "FTP server" "off" "samba" "SMB server" "off" "jre-openjdk" "OpenJDK (Java)" "off" "apache" "Apache HTTP Server" "off" "nginx" "Nginx HTTP Server" "off" "dnsmasq" "DNS, DHCP, PXE and TFTP server" "off" "nodejs" "Node.js" "off" "docker" "Docker" "off" "openvpn" "VPN client and server" "off" --stdout)
+pacman -Sy $(echo $pkgs) unzip gzip tar zstd wget curl rtkit lm_sensors --noconfirm
+
+cd /home/aurtemp
+git clone https://aur.archlinux.org/uasm.git
+chown -R aurtemp uasm
+cd uasm
+sudo -u aurtemp makepkg -si --noconfirm
+git clone https://aur.archlinux.org/7-zip-full.git
+chown -R aurtemp 7-zip-full
+cd 7-zip-full
+sudo -u aurtemp makepkg -si --noconfirm
+cd /
+
+if [ "$pkgs" == *"openssh"* ]; then
+    systemctl enable sshd
+elif [ "$pkgs" == *"vsftpd"* ]; then
+    systemctl enable vsftpd
+elif [ "$pkgs" == *"samba"* ]; then
+    wget "https://git.samba.org/samba.git/?p=samba.git;a=blob_plain;f=examples/smb.conf.default;hb=HEAD" -O /tmp/smb.conf
+    cp /tmp/smb.conf /etc/samba/smb.conf
+    systemctl enable smb
+elif [ "$pkgs" == *"apache"* ]; then
+    systemctl enable httpd
+elif [ "$pkgs" == *"nginx"* ]; then
+    systemctl enable nginx
+elif [ "$pkgs" == *"dnsmasq"* ]; then
+    systemctl enable dnsmasq
+elif [ "$pkgs" == *"docker"* ]; then
+    systemctl enable docker
+fi
+#uasm
+
+if [ "$editor" == "1" ]; then
+    pacman -S nano --noconfirm
+elif [ "$editor" == "2" ]; then
+    pacman -S vim --noconfirm
+elif [ "$editor" == "3" ]; then
+    pacman -S vi --noconfirm
+elif [ "$editor" == "4" ]; then
+    pacman -S neovim --noconfirm
+elif [ "$editor" == "5" ]; then
+    pacman -S emacs --noconfirm
+fi
+
+
+userdel -fr aurtemp
