@@ -33,13 +33,18 @@ checkInternet () {
     welcome
 }
 welcome () {
-    welcome=$(dialog --title "hoiOS Installer" --menu "Welcome! \nChoose action:" 10 30 30 "1" "Install system" "2" "Recovery shell" --stdout)
+    welcome=$(dialog --title "hoiOS Installer" --menu "Welcome! \nChoose action:" 11 30 30 "1" "Install system" "2" "Recovery shell" "3" "Web browser" --stdout)
     if [ $? == 1 ] || [ "$welcome" == "2" ]; then
         clear
         echo "Run ./installer to start setup."
         exit 1
     fi
-    choosePreset
+    if [ "$welcome" == "3" ]; then
+        xinit openbox-session
+        welcome
+    else
+        choosePreset
+    fi
 }
 choosePreset () {
     type=$(dialog --title "hoiOS Installer" --menu "Choose preset" 10 30 30 "1" "Server" "2" "Desktop" --stdout)
@@ -50,7 +55,7 @@ choosePreset () {
     chooseMode
 }
 chooseMode () {
-    minimal=$(dialog --title "hoiOS Installer" --menu "Choose mode" 10 30 30 "1" "Full" "2" "Minimal" --stdout)
+    minimal=$(dialog --title "hoiOS Installer" --menu "Choose mode" 10 30 30 "1" "Full" "2" "Minimal" "$( if [ "$type" = "2" ]; then echo "3"; fi )" "$( if [ "$type" = "2" ]; then echo "Gaming Edition"; fi )" --stdout)
     if [ $? != 0 ]; then
         choosePreset
         return 0
