@@ -24,7 +24,7 @@ elif [ "$de" == "2" ]; then
     pacman -S gdm gnome gnome-extra --noconfirm
     systemctl enable gdm
 elif [ "$de" == "3" ]; then
-    pacman -S xfce4 lightdm xfce4-goodies --noconfirm
+    pacman -S xfce4 lightdm xfce4-goodies lightdm-gtk-greeter --noconfirm
     systemctl enable lightdm
 elif [ "$de" == "4" ]; then
     pacman -S cinnamon xed xreader gdm gnome-terminal nemo --noconfirm
