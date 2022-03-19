@@ -21,7 +21,7 @@ reflectorSort () {
 }
 setupTimezone () {
     timezoneg=$(echo $jsondata | python3 -c "import sys, json; print(json.load(sys.stdin)['time_zone'])")
-    timezone=$(dialog --title "Enter timezone" --inputbox "Detected: $timezoneg" 8 50 --stdout)
+    timezone=$(dialog --title "Enter timezone" --default-item "${timezoneg}" --menu "" 20 60 30 $(find /usr/share/zoneinfo -type f | awk '//{print substr($1,21) " ."}') --stdout)
     ln -sf "/usr/share/zoneinfo/$timezone" /etc/localtime
     hwclock --systohc
     setupHostname
