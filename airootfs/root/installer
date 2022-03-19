@@ -193,6 +193,7 @@ installBaseSystem() {
     runOOBE
 }
 runOOBE () {
+    rsync -a copyToRoot /mnt
     cp "oobe-common" /mnt/root/oobe-common
     cp "oobe-$type-$minimal" /mnt/root/oobe
     cp aur_install /mnt/root/aur_install
