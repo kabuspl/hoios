@@ -106,11 +106,12 @@ setupDisk () {
     echo "Creating root filesystem"
     if [ "$rootfs" == "ext4" ]; then
         mkfs.ext4 -F $root
-        elif [ "$rootfs" == "btrfs" ]; then
+        mount $root /mnt
+    elif [ "$rootfs" == "btrfs" ]; then
         mkfs.btrfs -f $root
+        mount $root /mnt -o "compress=zstd,discard=async"
     fi
     mkswap $swap
-    mount $root /mnt
     mkdir -p /mnt/boot
     mount $boot /mnt/boot
     swapon $swap
