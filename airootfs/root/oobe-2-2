@@ -5,10 +5,12 @@ de=$(dialog --menu "Choose window manager" 10 30 30 "1" "i3" "2" "i3-gaps" "3" "
 browser=$(dialog --menu "Choose web browser" 10 30 30 "1" "Firefox" "2" "Chromium" "3" "Waterfox G4" "4" "Vivaldi" "5" "LibreWolf" "6" "Brave" "7" "None" --stdout)
 editor=$(dialog --menu "Choose editor" 10 30 30 "1" "nano" "2" "vim" "3" "vi" "4" "neovim" "5" "emacs" --stdout)
 media=$(dialog --menu "Choose media player" 10 30 30 "1" "VLC" "2" "mpv" "3" "None" --stdout)
-nvidia=$(dialog --yesno "Do you want to install proprietary NVIDIA drivers?" 10 30 --stdout)
-
+lspci | grep "GeForce" >/dev/null
 if [ "$?" == "0" ]; then
-    pacman -S nvidia nvidia-utils lib32-nvidia-utils
+    nvidia=$(dialog --yesno "Do you want to install proprietary NVIDIA drivers?" 10 30 --stdout)
+    if [ "$?" == "0" ]; then
+        pacman -S nvidia-dkms nvidia-utils lib32-nvidia-utils --noconfirm
+    fi
 fi
 
 useradd -m aurtemp

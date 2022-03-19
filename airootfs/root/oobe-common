@@ -54,6 +54,7 @@ chooseBootloader () {
     if checkUEFI; then
         bootloader=$(dialog --menu "Choose bootloader" 10 60 30 "grub" "GNU GRUB" "refind" "The rEFInd Boot Manager" --stdout)
     fi
+    echo $bootloader>/root/bootloader
     installBootloader
 }
 installBootloader () {
@@ -69,7 +70,7 @@ installBootloader () {
         pacman -Sy refind efibootmgr --noconfirm
         refind-install
         uuid=$(blkid -s UUID -o value $(cat /root/rootpart))
-        echo "\"hoiOS         \" \"root=UUID=${uuid} rw add_efi_memmap\"" > /boot/refind_linux.conf
+        echo "\"hoiOS         \" \"root=UUID=${uuid} rw add_efi_memmap quiet splash vt.global_cursor_default=0 \"" > /boot/refind_linux.conf
         echo "\"hoiOS Fallback\" \"root=UUID=${uuid} rw add_efi_memmap initrd=/initramfs-linux-fallback.img\"" >> /boot/refind_linux.conf
         echo "\"hoiOS Terminal\" \"root=UUID=${uuid} rw add_efi_memmap systemd.unit=multi-user.target\"" >> /boot/refind_linux.conf
     fi

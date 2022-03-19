@@ -6,26 +6,35 @@ browser=$(dialog --menu "Choose web browser" 10 30 30 "1" "Firefox" "2" "Chromiu
 editor=$(dialog --menu "Choose editor" 10 30 30 "1" "nano" "2" "vim" "3" "vi" "4" "neovim" "5" "emacs" --stdout)
 office=$(dialog --menu "Choose office suite" 10 30 30 "1" "LibreOffice" "2" "None" --stdout)
 media=$(dialog --menu "Choose media player" 10 30 30 "1" "VLC" "2" "mpv" --stdout)
-nvidia=$(dialog --yesno "Do you want to install proprietary NVIDIA drivers?" 10 30 --stdout)
-
+lspci | grep "GeForce" >/dev/null
 if [ "$?" == "0" ]; then
-    pacman -S nvidia nvidia-utils lib32-nvidia-utils
+    nvidia=$(dialog --yesno "Do you want to install proprietary NVIDIA drivers?" 10 30 --stdout)
+    if [ "$?" == "0" ]; then
+        pacman -S nvidia-dkms nvidia-utils lib32-nvidia-utils --noconfirm
+    fi
 fi
 
 useradd -m aurtemp
 usermod -G sudonopasswd aurtemp
 
 pacman -S lutris qbittorrent wine element-desktop thunderbird obs-studio gparted unzip gzip tar zstd wget curl rtkit lm_sensors --noconfirm
+/root/aur_install plymouth-git
+sed 's/udev/& plymouth/' -i /etc/mkinitcpio.conf
+sed 's/loglevel=3 quiet/& splash vt.global_cursor_default=0/' -i /etc/default/grub
+mkinitcpio -P
+if [ "$(cat /root/bootloader)" == "grub" ]; then
+    grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
 if [ "$de" == "1" ]; then
     pacman -S sddm plasma discover packagekit-qt5 dolphin kate konsole gwenview --noconfirm
-    systemctl enable sddm
+    systemctl enable sddm-plymouth
 elif [ "$de" == "2" ]; then
     pacman -S gdm gnome gnome-extra --noconfirm
     systemctl enable gdm
 elif [ "$de" == "3" ]; then
     pacman -S xfce4 lightdm xfce4-goodies lightdm-gtk-greeter --noconfirm
-    systemctl enable lightdm
+    systemctl enable lightdm-plymouth
 elif [ "$de" == "4" ]; then
     pacman -S cinnamon xed xreader gdm gnome-terminal nemo --noconfirm
     systemctl enable gdm
@@ -39,12 +48,7 @@ if [ "$browser" == "1" ]; then
 elif [ "$browser" == "2" ]; then
     pacman -S chromium --noconfirm
 elif [ "$browser" == "3" ]; then
-    cd /home/aurtemp
-    git clone https://aur.archlinux.org/waterfox-g4-bin.git
-    chown -R aurtemp waterfox-g4-bin
-    cd waterfox-g4-bin
-    sudo -u aurtemp makepkg -si --noconfirm
-    cd /
+    /root/aur_install waterfox-g4-bin
 elif [ "$browser" == "4" ]; then
     pacman -S vivaldi --noconfirm
 elif [ "$browser" == "5" ]; then

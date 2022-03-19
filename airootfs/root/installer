@@ -134,8 +134,14 @@ installBaseSystem() {
 runOOBE () {
     cp "oobe-common" /mnt/root/oobe-common
     cp "oobe-$type-$minimal" /mnt/root/oobe
+    cp aur_install /mnt/root/aur_install
     chmod +x /mnt/root/oobe
     chmod +x /mnt/root/oobe-common
+    chmod +x /mnt/root/aur_install
+    mkdir -p /mnt/usr/share/plymouth/themes/
+    mkdir -p /mnt/etc/plymouth/
+    cp -r /usr/share/plymouth/themes/hoios /mnt/usr/share/plymouth/themes/
+    cp /etc/plymouth/plymouthd.conf /mnt/etc/plymouth/
     echo $boot>/mnt/root/bootpart
     echo $disk>/mnt/root/bootdisk
     echo $root>/mnt/root/rootpart
