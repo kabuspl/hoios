@@ -33,7 +33,7 @@ checkInternet () {
     welcome
 }
 welcome () {
-    welcome=$(dialog --title "hoiOS Installer" --menu "Welcome! \nChoose action:" 11 30 30 "1" "Install system" "2" "Recovery menu" "3" "Web browser" --stdout)
+    welcome=$(dialog --title "hoiOS Installer" --menu "Welcome! \nChoose action:" 12 30 30 "1" "Install system" "2" "Recovery menu" "3" "Web browser" "4" "Reboot" --stdout)
     if [ $? == 1 ]; then
         clear
         echo "Run ./installer to start setup."
@@ -44,6 +44,8 @@ welcome () {
     elif [ "$welcome" == "3" ]; then
         xinit openbox-session
         welcome
+    elif [ "$welcome" == "4" ]; then
+        reboot
     fi
     choosePreset
 }
@@ -71,13 +73,13 @@ recovery () {
         recovery
         return 0
     fi
-    mount $root /mnt
-    mount $boot /mnt/boot
-    swapon $swap
+    mount $rcroot /mnt
+    mount $rcboot /mnt/boot
+    swapon $rcswap
     recmenu
 }
 recmenu () {
-    rcmenu=$(dialog --title "hoiOS Recovery" --menu "Welcome! \nChoose action:" 11 30 30 "1" "Exit to shell" "2" "Repair bootloader" "3" "Reinstall kernel" "4" "Change root password" "5" "Regenerate fstab" --stdout)
+    rcmenu=$(dialog --title "hoiOS Recovery" --menu "Welcome! \nChoose action:" 20 30 30 "1" "Exit to shell" "2" "Repair bootloader" "3" "Reinstall kernel" "4" "Change root password" "5" "Regenerate fstab" --stdout)
     if [ $? = 1 ]; then
         return 1
     elif [ "$rcmenu" = "1" ]; then
@@ -86,6 +88,7 @@ recmenu () {
         exit 1
     elif [ "$rcmenu" = "2" ]; then
         cp repairBootloader /mnt/root/repairBootloader
+        chmod +x /mnt/root/repairBootloader
         arch-chroot /mnt /root/repairBootloader
         recmenu
     elif [ "$rcmenu" = "3" ]; then
@@ -97,8 +100,10 @@ recmenu () {
         recmenu
     elif [ "$rcmenu" = "4" ]; then
         arch-chroot /mnt passwd
+        recmenu
     elif [ "$rcmenu" = "5" ]; then
         genfstab -U /mnt > /mnt/etc/fstab
+        recmenu
     fi
 }
 choosePreset () {
