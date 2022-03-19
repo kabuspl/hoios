@@ -1,0 +1,13 @@
+if [ -d /boot/grub ]; then
+    if checkUEFI; then
+        grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
+    else
+        grub-install --target=i386-pc $(cat /root/bootdisk)
+    fi
+else
+    refind-install
+    uuid=$(blkid -s UUID -o value $(cat /root/rootpart))
+    echo "\"hoiOS         \" \"root=UUID=${uuid} rw add_efi_memmap quiet splash vt.global_cursor_default=0 \"" > /boot/refind_linux.conf
+    echo "\"hoiOS Fallback\" \"root=UUID=${uuid} rw add_efi_memmap initrd=/initramfs-linux-fallback.img\"" >> /boot/refind_linux.conf
+    echo "\"hoiOS Terminal\" \"root=UUID=${uuid} rw add_efi_memmap systemd.unit=multi-user.target\"" >> /boot/refind_linux.conf
+fi
