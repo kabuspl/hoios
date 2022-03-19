@@ -52,7 +52,7 @@ checkUEFI () {
 chooseBootloader () {
     bootloader="grub"
     if checkUEFI; then
-        bootloader=$(dialog --menu "Choose bootloader" --default-item "refind" 10 60 30 "grub" "GNU GRUB" "refind" "The rEFInd Boot Manager" --stdout)
+        bootloader=$(dialog --default-item "refind" --menu "Choose bootloader" 10 60 30 "grub" "GNU GRUB" "refind" "The rEFInd Boot Manager" --stdout)
     fi
     echo $bootloader>/root/bootloader
     installBootloader

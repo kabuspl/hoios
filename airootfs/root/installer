@@ -187,13 +187,13 @@ installBaseSystem() {
     if [ "$type" == "1" ]; then
         pacstrap /mnt base linux-lts linux-firmware grub dialog git sudo base-devel dhcpcd networkmanager htop ufw curl reflector
         elif [ "$type" == "2" ]; then
-        pacstrap /mnt base linux-zen linux-firmware grub dialog git sudo base-devel dhcpcd networkmanager bluez bluez-utils htop cups noto-fonts ttf-dejavu ufw curl reflector
+        pacstrap /mnt base linux-zen linux-firmware grub refind dialog git sudo base-devel dhcpcd networkmanager bluez bluez-utils htop cups noto-fonts ttf-dejavu ufw curl reflector
     fi
     genfstab -U /mnt >> /mnt/etc/fstab
     runOOBE
 }
 runOOBE () {
-    rsync -a copyToRoot /mnt
+    rsync -a copyToRoot/ /mnt
     cp "oobe-common" /mnt/root/oobe-common
     cp "oobe-$type-$minimal" /mnt/root/oobe
     cp aur_install /mnt/root/aur_install
