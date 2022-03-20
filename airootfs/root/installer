@@ -187,7 +187,7 @@ installBaseSystem() {
     if [ "$type" == "1" ]; then
         pacstrap /mnt base linux-lts linux-firmware grub dialog git sudo base-devel dhcpcd networkmanager htop ufw curl reflector
         elif [ "$type" == "2" ]; then
-        pacstrap /mnt base linux-zen linux-firmware grub refind dialog git sudo base-devel dhcpcd networkmanager bluez bluez-utils htop cups noto-fonts ttf-dejavu ufw curl reflector
+        pacstrap /mnt base linux-zen linux-firmware grub refind dialog git sudo base-devel dhcpcd networkmanager bluez bluez-utils htop cups noto-fonts ttf-dejavu ufw curl reflector zsh pkgfile zsh-syntax-highlighting
     fi
     genfstab -U /mnt >> /mnt/etc/fstab
     runOOBE
@@ -207,6 +207,7 @@ runOOBE () {
     echo $boot>/mnt/root/bootpart
     echo $disk>/mnt/root/bootdisk
     echo $root>/mnt/root/rootpart
+    echo $type>/mnt/root/type
     arch-chroot /mnt /root/oobe-common
 }
 

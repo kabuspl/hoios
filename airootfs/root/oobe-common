@@ -34,7 +34,11 @@ setupHostname () {
 setupUser () {
     user=$(dialog --title "Enter username" --inputbox " " 8 50 --stdout)
     userpasswd=$(dialog --title "Enter $user password" --passwordbox " " 8 50 --stdout)
-    useradd -m $user
+    if [ "$(cat /root/type)" = "2" ]; then
+        useradd -m $user -s /bin/zsh
+    else
+        useradd -m $user
+    fi
     echo "$user:$userpasswd" | chpasswd
     usermod -G sudo $user
     setupRoot

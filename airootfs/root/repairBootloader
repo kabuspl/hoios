@@ -1,3 +1,4 @@
+#!/bin/bash
 if [ -d /boot/grub ]; then
     if checkUEFI; then
         grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=hoios
